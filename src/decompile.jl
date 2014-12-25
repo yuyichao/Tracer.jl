@@ -14,17 +14,26 @@
 using Base
 
 export decompile_func, reconstruct_func, ast_is_closure, ast_get_args_body
+export find_method
+
+function decompile_func(code::LambdaStaticData)
+    return Base.uncompressed_ast(code)::Expr, code.module::Module
+end
 
 function decompile_func(f::Function)
-    return Base.uncompressed_ast(f.code)::Expr, f.code.module::Module
+    return decompile_func(f.code)
 end
 
 function decompile_func(f::Function, t::ANY)
+    return decompile_func(find_method(f, t))::(Expr, Module)
+end
+
+function find_method(f::Function, t::ANY)
     meth = methods(f, t)
     if length(meth) > 1
         error("Cannot determine the method to use")
     end
-    return decompile_func(meth[1].func)::(Expr, Module)
+    return meth[1].func::Function
 end
 
 function ast_is_closure(ast::Expr)

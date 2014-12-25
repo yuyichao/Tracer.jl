@@ -44,3 +44,6 @@ test_function(f2, false, (-2,), (-1,), (0,), (1,), (2,))
 test_function(f3, false)
 test_function(f4, true)
 test_function(f5, false, (-2,), (-1,), (0,), (1,), (2,))
+test_function(find_method(+, (Int, Int)), false, (-2, 2), (1, 1), (3, 4))
+test_function(find_method(+, (Float64, Float64)), false,
+              (-2., 2.), (1., 1.), (3., 4.))
