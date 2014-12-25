@@ -29,13 +29,11 @@ function test_function(f::Function, is_closure::Bool, inputs::Tuple...)
     @assert ast_is_closure(ast) == is_closure
     args, body = ast_get_args_body(ast)
     new_f = reconstruct_func(args, body, mod)
-    for input in inputs
-        for i in 1:3
-            res = f(input...)
-            new_res = new_f(input...)
-            @assert(res == new_res,
-                    "i: $i\nres: $res\nnew_res: $new_res\nAST: $ast\ninput: $input")
-        end
+    for input in inputs, i in 1:3
+        res = f(input...)
+        new_res = new_f(input...)
+        @assert(res == new_res,
+                "i: $i\nres: $res\nnew_res: $new_res\nAST: $ast\ninput: $input")
     end
 end
 
