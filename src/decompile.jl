@@ -24,11 +24,17 @@ function decompile_func(f::Function)
     return decompile_func(f.code)
 end
 
-function decompile_func(f::Function, t::ANY)
-    return decompile_func(find_method(f, t))::(Expr, Module)
+function decompile_func(f::Function, t::ANY, kw::Bool=false)
+    return decompile_func(find_method(f, t, kw))::(Expr, Module)
 end
 
-function find_method(f::Function, t::ANY)
+function find_method(f::Function, t::ANY, kw::Bool=false)
+    if kw
+        if !isdefined(f.env, :kwsorter)
+            error("Function does not support keyword arguments")
+        end
+        f = f.env.kwsorter
+    end
     meth = methods(f, t)
     if length(meth) > 1
         error("Cannot determine the method to use")
@@ -40,8 +46,31 @@ function ast_is_closure(ast::Expr)
     return !isempty(ast.args[2][3])::Bool
 end
 
-function ast_get_args_body(ast::Expr)
-    return ast.args[1], ast.args[3].args
+function _fix_arg_ast(arg::Symbol, mod::Module)
+    return arg
+end
+
+function _fix_arg_ast(arg::Expr, mod::Module)
+    if arg.head != :(::)
+        return arg
+    end
+    # FIXME? use eval for now
+    typ = mod.eval(arg.args[2])
+    if !(typ <: Vararg)
+        return arg
+    end
+    typ = typ.parameters[1]
+    sym = arg.args[1]
+    return Expr(:(...), Expr(:(::), sym, typ))
+end
+
+function ast_get_args_body(ast::Expr, mod::Module)
+    args = ast.args[1]
+    body = ast.args[3].args
+    for i in 1:length(args)
+        args[i] = _fix_arg_ast(args[i], mod)
+    end
+    return args, body
 end
 
 function reconstruct_func(args, body, mod::Module)

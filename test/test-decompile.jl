@@ -27,7 +27,7 @@ end
 function test_function(f::Function, is_closure::Bool, inputs::Tuple...)
     ast, mod = decompile_func(f)
     @assert ast_is_closure(ast) == is_closure
-    args, body = ast_get_args_body(ast)
+    args, body = ast_get_args_body(ast, mod)
     new_f = reconstruct_func(args, body, mod)
     for input in inputs, i in 1:3
         res = f(input...)
@@ -45,3 +45,10 @@ test_function(f5, false, (-2,), (-1,), (0,), (1,), (2,))
 test_function(find_method(+, (Int, Int)), false, (-2, 2), (1, 1), (3, 4))
 test_function(find_method(+, (Float64, Float64)), false,
               (-2., 2.), (1., 1.), (3., 4.))
+
+function func(a, args::Float64...)
+    return a, args
+end
+
+test_function(find_method(func, (Float64, Float64)),
+              false, (1.,), (2., 3))
