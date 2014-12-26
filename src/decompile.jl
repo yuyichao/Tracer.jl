@@ -16,16 +16,29 @@ using Base
 export decompile_func, reconstruct_func, ast_is_closure, ast_get_args_body
 export find_method
 
-function decompile_func(code::LambdaStaticData)
-    return Base.uncompressed_ast(code)::Expr, code.module::Module
+type DecompileResult
+    ast::Expr
+    modu::Module
+    kw::Bool
+    functor::Bool
 end
 
-function decompile_func(f::Function)
-    return decompile_func(f.code)
+function decompile_func(code::LambdaStaticData, kw::Bool=false,
+                        functor::Bool=false)
+    return DecompileResult(Base.uncompressed_ast(code),
+                           code.module, kw, functor)
+end
+
+function decompile_func(f::Function, kw::Bool=false, functor::Bool=false)
+    return decompile_func(f.code, kw, functor)::DecompileResult
 end
 
 function decompile_func(f::Function, t::ANY, kw::Bool=false)
-    return decompile_func(find_method(f, t, kw))::(Expr, Module)
+    return decompile_func(find_method(f, t, kw), kw, false)::DecompileResult
+end
+
+function decompile_func(f::ANY, t::ANY, kw::Bool=false)
+    return decompile_func(find_method(f, t, kw), kw, true)::DecompileResult
 end
 
 function find_method(f::Function, t::ANY, kw::Bool=false)
@@ -42,20 +55,28 @@ function find_method(f::Function, t::ANY, kw::Bool=false)
     return meth[1].func::Function
 end
 
+function find_method(f::ANY, t::ANY, kw::Bool=false)
+    find_method(call, tuple(isa(f, Type) ? Type{f} : typeof(f), t...), kw)
+end
+
 function ast_is_closure(ast::Expr)
     return !isempty(ast.args[2][3])::Bool
 end
 
-function _fix_arg_ast(arg::Symbol, mod::Module)
+function ast_is_closure(ast::DecompileResult)
+    return ast_is_closure(ast.ast)
+end
+
+function _fix_arg_ast(arg::Symbol, modu::Module)
     return arg
 end
 
-function _fix_arg_ast(arg::Expr, mod::Module)
+function _fix_arg_ast(arg::Expr, modu::Module)
     if arg.head != :(::)
         return arg
     end
     # FIXME? use eval for now
-    typ = mod.eval(arg.args[2])
+    typ = modu.eval(arg.args[2])
     if !(typ <: Vararg)
         return arg
     end
@@ -64,16 +85,20 @@ function _fix_arg_ast(arg::Expr, mod::Module)
     return Expr(:(...), Expr(:(::), sym, typ))
 end
 
-function ast_get_args_body(ast::Expr, mod::Module)
+function ast_get_args_body(ast::Expr, modu::Module)
     args = ast.args[1]
     body = ast.args[3].args
     for i in 1:length(args)
-        args[i] = _fix_arg_ast(args[i], mod)
+        args[i] = _fix_arg_ast(args[i], modu)
     end
     return args, body
 end
 
-function reconstruct_func(args, body, mod::Module)
+function ast_get_args_body(res::DecompileResult)
+    return ast_get_args_body(res.ast, res.modu)
+end
+
+function reconstruct_func(args, body, modu::Module)
     code = Expr(:function, Expr(:tuple, args...), Expr(:block, body...))
-    return mod.eval(code)::Function
+    return modu.eval(code)::Function
 end

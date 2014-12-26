@@ -25,10 +25,11 @@ f5 = (a) -> begin
 end
 
 function test_function(f::Function, is_closure::Bool, inputs::Tuple...)
-    ast, mod = decompile_func(f)
-    @assert ast_is_closure(ast) == is_closure
-    args, body = ast_get_args_body(ast, mod)
-    new_f = reconstruct_func(args, body, mod)
+    res = decompile_func(f)
+    @assert ast_is_closure(res) == is_closure
+    @assert res.functor == false
+    args, body = ast_get_args_body(res)
+    new_f = reconstruct_func(args, body, res.modu)
     for input in inputs, i in 1:3
         res = f(input...)
         new_res = new_f(input...)
