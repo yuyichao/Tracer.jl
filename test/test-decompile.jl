@@ -28,6 +28,7 @@ function test_function(f::Function, is_closure::Bool, inputs::Tuple...)
     res = decompile_func(f)
     @assert ast_is_closure(res) == is_closure
     @assert res.functor == false
+    @assert res.kw == false
     args, body = ast_get_args_body(res)
     new_f = reconstruct_func(args, body, res.modu)
     for input in inputs, i in 1:3
